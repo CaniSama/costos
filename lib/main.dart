@@ -33,7 +33,7 @@ class MainApp extends StatelessWidget {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('costitos'),
+          title: const Text('costitos v1.1'),
         ),
         body: const Mio(),
       ),
@@ -97,38 +97,67 @@ class _MioState extends State<Mio> {
 
   Future<void> _showAddPersonModal(BuildContext context) async {
     String newName = '';
+    bool containsSpecialCharacters = false;
 
     return showModalBottomSheet(
       context: context,
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                onChanged: (value) {
-                  newName = value;
-                },
-                decoration: const InputDecoration(labelText: 'Nombre'),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        // Validar que no sea un espacio en blanco o caracteres especiales
+                        if (value.isNotEmpty &&
+                            !RegExp(r'^[a-zA-Z0-9]+$').hasMatch(value)) {
+                          // Si hay caracteres especiales o espacio, eliminarlos
+                          newName = value.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+                          containsSpecialCharacters = true;
+                        } else {
+                          newName = value;
+                          containsSpecialCharacters = false;
+                        }
+                      });
+                    },
+                    decoration: const InputDecoration(labelText: 'Nombre'),
+                  ),
+                  if (containsSpecialCharacters)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: RichText(
+                        text: const TextSpan(
+                          text: 'No se admiten caracteres especiales',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: newName.trim().isNotEmpty && !containsSpecialCharacters
+                        ? () {
+                            Navigator.pop(context); // Cerrar el modal
+                            _addPerson(newName);
+                          }
+                        : null,
+                    child: const Text('Agregar'),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context); // Cerrar el modal
-                  _addPerson(newName);
-                },
-                child: const Text('Agregar'),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  Future<void> _showDeleteConfirmationModal(BuildContext context, String itemName) async {
+  Future<void> _showDeleteConfirmationModal(
+      BuildContext context, String itemName) async {
     return showModalBottomSheet(
       context: context,
       builder: (context) {
@@ -173,3 +202,5 @@ class _MioState extends State<Mio> {
     setState(() {});
   }
 }
+
+
