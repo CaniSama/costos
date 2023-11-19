@@ -167,7 +167,7 @@ class _MioState extends State<Mio> {
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('¿Eliminar $itemName?'),
+              Text('¿Eliminar a "$itemName"?'),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
