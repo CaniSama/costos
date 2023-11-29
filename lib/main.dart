@@ -1,206 +1,380 @@
+import 'package:costos/bloc/bloc.dart';
+import 'package:costos/database/database.dart';
 import 'package:flutter/material.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-late Database db;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  sqfliteFfiInit();
-
-  var databaseFactory = databaseFactoryFfiWeb;
-  String databasePath = '${await databaseFactory.getDatabasesPath()}/base.db';
-  db = await databaseFactory.openDatabase(
-    databasePath,
-    options: OpenDatabaseOptions(
-      version: 1,
-      onCreate: (db, version) async {
-        await db.execute(
-          'CREATE TABLE PERSONAS (ID INTEGER PRIMARY KEY AUTOINCREMENT, NOMBRE TEXT(35));',
-        );
-      },
+  final carrosDatabase = CarrosDatabase();
+  await carrosDatabase.initializeDatabase();
+  runApp(
+    BlocProvider(
+    create: (context) => MiBloc(carrosDatabase),
+    child: const App(),
     ),
   );
-
-  runApp(const MainApp());
 }
 
-class MainApp extends StatelessWidget {
-  const MainApp({Key? key}) : super(key: key);
+class App extends StatelessWidget {
+  const App({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('costitos v1.1'),
-        ),
-        body: const Mio(),
-      ),
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(body: MainApp()),
     );
   }
 }
 
-class Mio extends StatefulWidget {
-  const Mio({Key? key}) : super(key: key);
+class MainApp extends StatefulWidget {
+  const MainApp({Key? key}) : super(key: key);
 
   @override
-  State<Mio> createState() => _MioState();
+  State<MainApp> createState() => _MainAppState();
 }
 
-class _MioState extends State<Mio> {
-  String? itemSeleccionado;
+class _MainAppState extends State<MainApp> {
+  @override
+  void initState() {
+    super.initState();
+    BlocProvider.of<MiBloc>(context).add(Inicializado());
+    BlocProvider.of<MiBloc>(context).add(TraerTodosLosCarros());
+  }
+
+  int _indiceSeleccionado = 0;
+
+  final List<Widget> _paginas = [
+    const ListaCarros(),
+    const ListaGastos(),
+    const ListaCategorias(),
+    
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          Expanded(
-            child: FutureBuilder(
-              future: _getAllNames(),
-              builder: ((context, snapshot) {
-                if (!snapshot.hasData) return const CircularProgressIndicator();
-                var lista = snapshot.data!;
-                return ListView.builder(
-                  itemCount: lista.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(lista[index]),
-                      tileColor:
-                          itemSeleccionado == lista[index] ? Colors.grey : null,
-                      onTap: () {
-                        setState(() {
-                          itemSeleccionado = lista[index];
-                        });
-                      },
-                      onLongPress: () {
-                        _showDeleteConfirmationModal(context, lista[index]);
-                      },
-                    );
-                  },
-                );
-              }),
-            ),
+      appBar: AppBar(
+        title: const Center(child: Text('Control de Gastos Vehicular')),
+        backgroundColor:  const Color.fromARGB(255, 136, 134, 136),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: (){
+              _borrarTablaCarros(context);
+            }, 
           ),
         ],
       ),
+      body: _paginas[_indiceSeleccionado],
+      bottomNavigationBar: BottomNavigationBar(
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.car_crash),
+            label: 'Carros',
+          ),
+            BottomNavigationBarItem(
+            icon: Icon(Icons.monetization_on_rounded),
+            label: 'Gastos',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.category),
+            label: 'Categorias',
+          ),
+        ],
+        currentIndex: _indiceSeleccionado,
+        onTap: _onTabTapped,
+        backgroundColor: const Color.fromARGB(255, 136, 134, 136),
+        selectedItemColor: Colors.white,
+        unselectedItemColor: const Color.fromARGB(255, 26, 25, 25),
+      ),
+    );
+  }
+
+  void _onTabTapped(int index) {
+    setState(() {
+      _indiceSeleccionado = index;
+    });
+  }
+}
+
+void _borrarTablaCarros(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirmación'),
+          content: const Text('¿Estás seguro de que quieres borrar todos los datos?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                _borrarDatos(context);
+                Navigator.of(context).pop();
+              },
+              child: const Text('Borrar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+void _borrarDatos(BuildContext context) {
+    final miBloc = BlocProvider.of<MiBloc>(context);
+    miBloc.add(BorrarTodosLosCarros());
+  }
+
+class ListaCarros extends StatelessWidget {
+  const ListaCarros({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: BlocBuilder<MiBloc, Estado>(
+        builder: (context, state) {
+          print("Current state: $state");
+          if (state is TodosLosCarrosCargados) {
+            return _listaCarros(state.carros);
+          } else if (state is ErrorTraerCarros) {
+            return Center(child: Text('Error: ${state.mensajeError}'));
+          } else {
+            return const Center(child: CircularProgressIndicator());
+          }
+        },
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          _showAddPersonModal(context);
+          _mostrarModal(context, 'Nuevo Carro');
         },
+        backgroundColor: const Color.fromARGB(255, 55, 139, 58),
         child: const Icon(Icons.add),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
-  Future<void> _showAddPersonModal(BuildContext context) async {
-    String newName = '';
-    bool containsSpecialCharacters = false;
-
-    return showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    onChanged: (value) {
-                      setState(() {
-                        // Validar que no sea un espacio en blanco o caracteres especiales
-                        if (value.isNotEmpty &&
-                            !RegExp(r'^[a-zA-Z0-9]+$').hasMatch(value)) {
-                          // Si hay caracteres especiales o espacio, eliminarlos
-                          newName = value.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
-                          containsSpecialCharacters = true;
-                        } else {
-                          newName = value;
-                          containsSpecialCharacters = false;
-                        }
-                      });
+  Widget _listaCarros(List<Map<String, dynamic>>? carros) {
+    if (carros != null) {
+      return Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: carros.length,
+              itemBuilder: (context, index) {
+                final carro = carros[index];
+                return ListTile(
+                  title: Text(carro['APODO'] ?? 'No Apodo'),
+                  subtitle: Text(
+                    '${carro['MARCA'] ?? 'No Marca'} ${carro['MODELO'] ?? 'No Modelo'} (${carro['ANIO'] ?? 'No Año'})',
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () {
+                      _eliminarCarro(context, carro['ID']);
                     },
-                    decoration: const InputDecoration(labelText: 'Nombre'),
                   ),
-                  if (containsSpecialCharacters)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: RichText(
-                        text: const TextSpan(
-                          text: 'No se admiten caracteres especiales',
-                          style: TextStyle(color: Colors.red),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: newName.trim().isNotEmpty && !containsSpecialCharacters
-                        ? () {
-                            Navigator.pop(context); // Cerrar el modal
-                            _addPerson(newName);
-                          }
-                        : null,
-                    child: const Text('Agregar'),
-                  ),
-                ],
-              ),
-            );
-          },
+                );
+              },
+            ),
+          ),
+        ],
+      );
+    } else {
+      return const Center(child: Text('No hay carros disponibles'));
+    }
+  }
+
+  void _mostrarModal(BuildContext context, String carros) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return const FractionallySizedBox(
+          heightFactor: 1.2,
+          child: AgregarCarro(),
         );
       },
     );
   }
 
-  Future<void> _showDeleteConfirmationModal(
-      BuildContext context, String itemName) async {
-    return showModalBottomSheet(
+  void _eliminarCarro(BuildContext context, int carroId) {
+    showDialog(
       context: context,
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('¿Eliminar a "$itemName"?'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context); // Cerrar el modal
-                  _deletePerson(itemName);
-                },
-                child: const Text('Eliminar'),
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirmación'),
+          content: const Text('¿Estás seguro de que quieres eliminar este carro?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                _borrarCarro(context, carroId);
+                Navigator.of(context).pop();
+              },
+              child: const Text('Eliminar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _borrarCarro(BuildContext context, int carroId) {
+    final miBloc = BlocProvider.of<MiBloc>(context);
+    miBloc.add(EliminarCarro(idCarro: carroId));
+  }
+}
+
+class AgregarCarro extends StatefulWidget {
+  const AgregarCarro({super.key});
+
+  @override
+  State<AgregarCarro> createState() => _AgregarCarroState();
+}
+
+class _AgregarCarroState extends State<AgregarCarro> {
+  final _formKey = GlobalKey<FormState>();
+  TextEditingController apodoController = TextEditingController();
+  TextEditingController modeloController = TextEditingController();
+  TextEditingController marcaController = TextEditingController();
+  TextEditingController anioController = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<MiBloc, Estado>(
+      builder: (context, state) {
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Nuevo Carro'),
+            backgroundColor: const Color.fromARGB(255, 136, 134, 136),
+          ),
+          body: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextFormField(
+                      controller: apodoController,
+                      decoration: InputDecoration(
+                        labelText: 'Apodo',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, ingrese un apodo';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 10.0),
+                    TextFormField(
+                      controller: modeloController,
+                      decoration: InputDecoration(
+                        labelText: 'Modelo',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, ingrese un modelo';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 10.0),
+                    TextFormField(
+                      controller: marcaController,
+                      decoration: InputDecoration(
+                        labelText: 'Marca',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, ingrese una marca';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 10.0),
+                    TextFormField(
+                      controller: anioController,
+                      decoration: InputDecoration(
+                        labelText: 'Año',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, ingrese un año';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 10.0),
+                    ElevatedButton(
+                      onPressed: () {
+                        _insertarCarro(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color.fromARGB(255, 60, 39, 176),
+                      ),
+                      child: const Text('Insertar Carro'),
+                    ),
+                  ],
+                ),
               ),
-            ],
+            ),
           ),
         );
       },
     );
   }
 
-  void _addPerson(String name) async {
-    await db.rawInsert('INSERT INTO PERSONAS (NOMBRE) VALUES(?)', [name]);
-    _updateList();
-  }
+  void _insertarCarro(BuildContext context) {
+    final miBloc = BlocProvider.of<MiBloc>(context);
 
-  void _deletePerson(String name) async {
-    await db.rawDelete('DELETE FROM PERSONAS WHERE NOMBRE = ?', [name]);
-    _updateList();
+    if(_formKey.currentState?.validate() ?? false){
+      miBloc.add(
+      InsertarCarro(
+        apodo: apodoController.text,
+      ),
+    );
   }
+ }  
+}   
 
-  Future<List<String>> _getAllNames() async {
-    var queryResult = await db.rawQuery('SELECT NOMBRE FROM PERSONAS');
-    return queryResult.map((e) => e['NOMBRE'] as String).toList();
-  }
-
-  void _updateList() {
-    setState(() {});
+class ListaCategorias  extends StatelessWidget {
+  const ListaCategorias ({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Container();
   }
 }
 
-
+class ListaGastos  extends StatelessWidget {
+  const ListaGastos ({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Container();
+  }
+}
