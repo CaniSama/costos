@@ -4,116 +4,113 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 
 //EVENTOS
-abstract class Evento {}
+abstract class CarroEvento {}
 
-class BorrarTodosLosCarros extends Evento{}
+class Inicializado extends CarroEvento {}
 
-class Inicializado extends Evento {}
-
-class CarroSeleccionado extends Evento {
+class CarroSeleccionado extends CarroEvento {
   final int indiceSeleccionado;
 
   CarroSeleccionado({required this.indiceSeleccionado});
 }
 
-class InsertarCarro extends Evento {
+class GetCarros extends CarroEvento {}
+
+class InsertarCarro extends CarroEvento {
   final String apodo;
 
   InsertarCarro({
     required this.apodo,
-
   });
 }
 
-class EliminarCarro extends Evento {
+class EliminarCarro extends CarroEvento {
   final int idCarro;
 
   EliminarCarro({required this.idCarro});
 }
 
-class TraerTodosLosCarros extends Evento{}
-
-class UpdateCarro extends Evento {
+class UpdateCarro extends CarroEvento {
   final String apodo;
   final int idcarro;
 
   UpdateCarro({required this.apodo, required this.idcarro});
 }
 
-class ArchivarCarro extends Evento {
+class ArchivarCarro extends CarroEvento {
   final int idcarro;
 
   ArchivarCarro({required this.idcarro});
 }
-
 // ESTADOS
-class Estado {}
+abstract class CarroEstado {
+  get mensajeError => null;
+}
 
-class EstadoInicial extends Estado {}
+class EstadoInicial extends CarroEstado {}
 
-class CarroSeleccionadoEstado extends Estado {
+class CarroSeleccionadoEstado extends CarroEstado {
   final int idSeleccionado;
 
   CarroSeleccionadoEstado({required this.idSeleccionado});
 }
 
-class CarroInsertado extends Estado {}
-
-class CarroEliminado extends Estado {}
-
-class CarroActualizado extends Estado {}
-
-class CarroArchivado extends Estado {}
-
-class GetAllCarros extends Estado {
+class GetAllCarros extends CarroEstado {
   final List<Map<String, dynamic>> carros;
 
   GetAllCarros({required this.carros});
 }
 
-class TodosLosCarrosCargados extends Estado{
-  final List<Map<String, dynamic>> carros;
+class CarroInsertado extends CarroEstado {}
 
-  TodosLosCarrosCargados({required this.carros});
+class CarroEliminado extends CarroEstado {}
+
+class CarroActualizado extends CarroEstado {}
+
+class CarroArchivado extends CarroEstado {}
+
+class ErrorGetAllCarros extends CarroEstado {
+  @override
+  final String mensajeError;
+
+  ErrorGetAllCarros({required this.mensajeError});
 }
 
-class ErrorAlInsertarCarro extends Estado {
+class ErrorAlInsertarCarro extends CarroEstado {
+  @override
   final String mensajeError;
 
   ErrorAlInsertarCarro({required this.mensajeError});
 }
 
-class ErrorAlEliminarCarro extends Estado {
+class ErrorAlEliminarCarro extends CarroEstado {
+  @override
   final String mensajeError;
 
   ErrorAlEliminarCarro({required this.mensajeError});
 }
 
-class ErrorTraerCarros extends Estado{
-  final String mensajeError;
-
-  ErrorTraerCarros({required this.mensajeError});
-}
-
-class ErrorAlActualizarCarro extends Estado {
+class ErrorAlActualizarCarro extends CarroEstado {
+  @override
   final String mensajeError;
 
   ErrorAlActualizarCarro({required this.mensajeError});
 }
 
-class ErrorAlArchivarCarro extends Estado {
+class ErrorAlArchivarCarro extends CarroEstado {
+  @override
   final String mensajeError;
 
   ErrorAlArchivarCarro({required this.mensajeError});
 }
-
 //BLOC
 
-class MiBloc extends Bloc<Evento, Estado> {
+class MiBloc extends Bloc<CarroEvento, CarroEstado> {
   final CarrosDatabase carrosDatabase;
 
   MiBloc(this.carrosDatabase) : super(EstadoInicial()) {
-    on<Inicializado>((event, emit) {
+    
+     on<Inicializado>((event, emit) {
       emit(EstadoInicial());
     });
 
@@ -122,36 +119,35 @@ class MiBloc extends Bloc<Evento, Estado> {
       emit(CarroSeleccionadoEstado(idSeleccionado: idSeleccionado));
     });
 
+    on<GetCarros>((event, emit) async {
+      try {
+        final carros = await carrosDatabase.getCarros();
+        emit(GetAllCarros(carros: carros));
+      } catch (e) {
+        emit(ErrorGetAllCarros(
+            mensajeError: 'Error al cargar todos los carros: $e'));
+      }
+    });
+
     on<InsertarCarro>((event, emit) async {
       try {
-        await carrosDatabase.addCarro(
-          event.apodo
-        );
-        print("Carro insertado event triggered");
+        await carrosDatabase.addCarro(event.apodo);
+
         emit(CarroInsertado());
-        add(TraerTodosLosCarros());
+        add(GetCarros());
       } catch (e) {
-        emit(ErrorAlInsertarCarro(mensajeError: 'Error al insertar el carro: $e'));
+        emit(ErrorAlInsertarCarro(mensajeError: 'Error al insertar el carro.'));
       }
     });
 
-    on<EliminarCarro>((event, emit) async{
+    on<EliminarCarro>((event, emit) {
       try {
-        await carrosDatabase.deleteCarro(event.idCarro);
+        // Llama al método de la base de datos para eliminar el carro
+        carrosDatabase.deleteCarro(event.idCarro);
         emit(CarroEliminado());
+        add(GetCarros());
       } catch (e) {
-        emit(ErrorAlEliminarCarro(mensajeError: 'Error al eliminar el carro: $e'));
-      }
-    });
-
-    on<TraerTodosLosCarros>((event, emit) async{
-      try{
-        final carros = await carrosDatabase.getCarros();
-        print("Carros loaded: $carros");
-        emit(TodosLosCarrosCargados(carros: carros));
-      } catch (e){
-        print("Error loading cars: $e");
-        emit(ErrorTraerCarros(mensajeError: 'Error al cargar todos los carros: $e'));
+        emit(ErrorAlEliminarCarro(mensajeError: 'Error al eliminar el carro.'));
       }
     });
 
@@ -160,7 +156,7 @@ class MiBloc extends Bloc<Evento, Estado> {
         carrosDatabase.updateCarro(event.apodo, event.idcarro);
 
         emit(CarroActualizado());
-        add(TraerTodosLosCarros());
+        add(GetCarros());
       } catch (e) {
         emit(ErrorAlActualizarCarro(
             mensajeError: 'Error al insertar el carro.'));
@@ -172,7 +168,7 @@ class MiBloc extends Bloc<Evento, Estado> {
         carrosDatabase.archivarCarro(event.idcarro);
 
         emit(CarroArchivado());
-        add(TraerTodosLosCarros());
+        add(GetCarros());
       } catch (e) {
         emit(ErrorAlArchivarCarro(mensajeError: 'Error al insertar el carro.'));
       }

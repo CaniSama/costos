@@ -7,7 +7,7 @@ class CarrosDatabase {
   Future<void> initializeDatabase() async {
     var fabricaBaseDatos = databaseFactoryFfiWeb;
     String rutaBaseDatos =
-        '${await fabricaBaseDatos.getDatabasesPath()}/carros_registros.db';
+        '${await fabricaBaseDatos.getDatabasesPath()}/carros_gastos.db';
 
     db = await fabricaBaseDatos.openDatabase(
       rutaBaseDatos,
@@ -21,7 +21,7 @@ class CarrosDatabase {
               'CREATE TABLE IF NOT EXISTS categorias (idcategoria INTEGER PRIMARY KEY AUTOINCREMENT, nombrecategoria TEXT(35) NOT NULL, archivado INT default 1)');
 
           await db.execute(
-              'CREATE TABLE IF NOT EXISTS movimientos (idmovimiento INTEGER PRIMARY KEY AUTOINCREMENT,nombremovimiento TEXT(35) NOT NULL,idcarro INT NOT NULL, idcategoria INT NOT NULL, gastototal INT NOT NULL)');
+              ' CREATE TABLE IF NOT EXISTS movimientos (idmovimiento INTEGER PRIMARY KEY AUTOINCREMENT, nombremovimiento TEXT NOT NULL, idcarro INT NOT NULL, idcategoria INT NOT NULL, gastototal INT NOT NULL, fechagasto TEXT(30) NOT NULL)');
         },
       ),
     );
@@ -34,6 +34,7 @@ class CarrosDatabase {
         await db.rawQuery('SELECT * FROM carros ORDER BY archivado DESC;');
     return resultadoConsulta;
   }
+
   Future<void> addCarro(String apodo) async {
     await db.rawInsert('INSERT INTO carros (apodo) VALUES (?)', [apodo]);
   }
@@ -41,10 +42,12 @@ class CarrosDatabase {
   Future<void> deleteCarro(int id) async {
     await db.rawDelete('DELETE FROM carros WHERE idcarro = ?', [id]);
   }
- Future<void> updateCarro(String apodo, int id) async {
+
+  Future<void> updateCarro(String apodo, int id) async {
     await db.rawUpdate(
         'UPDATE carros SET apodo = ? WHERE idcarro = ?', [apodo, id]);
   }
+
   Future<void> archivarCarro(int id) async {
     await db.rawUpdate(
         'UPDATE carros SET archivado = CASE WHEN archivado = 1 THEN 0 WHEN archivado = 0 THEN 1 ELSE archivado END WHERE idcarro = ?',
@@ -80,26 +83,60 @@ class CarrosDatabase {
   }
 
 //DB PARA GASTOS
-  Future<List<Map<String, dynamic>>> getMovimientos() async {
-    var resultadoConsulta = await db.rawQuery('SELECT * FROM movimientos;');
-    return resultadoConsulta;
+Future<List<Map<String, dynamic>>> getMovimientos({int? idcarro, int? idcategoria}) async {
+  String query = 'SELECT * FROM movimientos WHERE 1=1';
+
+  if (idcarro != null) {
+    query += ' AND idcarro = $idcarro';
   }
 
-  Future<void> addMovimiento(String nombremovimiento, int idcarro,
-      int idcategoria, int gastototal) async {
-    await db.rawInsert(
-        'INSERT INTO movimientos (nombremovimiento, idcarro, idcategoria, gastototal) VALUES (?, ?, ?, ?)',
-        [nombremovimiento, idcarro, idcategoria, gastototal]);
+  if (idcategoria != null) {
+    query += ' AND idcategoria = $idcategoria';
+  }
+
+  var resultadoConsulta = await db.rawQuery(query);
+  return resultadoConsulta;
+}
+
+  Future<void> addMovimiento(
+    String nombremovimiento,
+    int idcarro,
+    int idcategoria,
+    int gastototal,
+    String fechagasto,
+  ) async {
+    try {
+      await db.rawInsert(
+        'INSERT INTO movimientos (nombremovimiento, idcarro, idcategoria, gastototal, fechagasto) VALUES (?, ?, ?, ?, ?)',
+        [nombremovimiento, idcarro, idcategoria, gastototal, fechagasto],
+      );
+     
+    } catch (e) {
+      print('Error al insertar el movimiento: $e');
+      // Maneja el error de inserción aquí si es necesario
+    }
   }
 
   Future<void> deleteMovimiento(int id) async {
     await db.rawDelete('DELETE FROM movimientos WHERE idmovimiento = ?', [id]);
   }
 
-  Future<void> updateMovimiento(String nombremovimiento, int idcarro,
-      int idcategoria, int gastototal, int idmovimiento) async {
+  Future<void> updateMovimiento(
+      String nombremovimiento,
+      int idcarro,
+      int idcategoria,
+      int gastototal,
+      int idmovimiento,
+      String fechagasto) async {
     await db.rawUpdate(
-        'UPDATE movimientos SET nombremovimiento=?,idcarro=?,idcategoria=?,gastototal=? WHERE idmovimiento = ?',
-        [nombremovimiento, idcarro, idcategoria, gastototal, idmovimiento]);
+        'UPDATE movimientos SET nombremovimiento=?,idcarro=?,idcategoria=?,gastototal=?,fechagasto=? WHERE idmovimiento = ?',
+        [
+          nombremovimiento,
+          idcarro,
+          idcategoria,
+          gastototal,
+          fechagasto,
+          idmovimiento,
+        ]);
   }
 }

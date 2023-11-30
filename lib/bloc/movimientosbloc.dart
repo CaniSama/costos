@@ -21,12 +21,14 @@ class InsertarMovimiento extends MovimientoEvento {
   final int idcarro;
   final int idcategoria;
   final int gastototal;
+  final String fechagasto;
 
   InsertarMovimiento({
     required this.nombremovimiento,
     required this.idcarro,
     required this.idcategoria,
     required this.gastototal,
+    required this.fechagasto,
   });
 }
 
@@ -42,6 +44,7 @@ class UpdateMovimiento extends MovimientoEvento {
   final int idcategoria;
   final int gastototal;
   final int idmovimiento;
+  final String fechagasto;
 
   UpdateMovimiento({
     required this.nombremovimiento,
@@ -49,6 +52,7 @@ class UpdateMovimiento extends MovimientoEvento {
     required this.idcategoria,
     required this.gastototal,
     required this.idmovimiento,
+    required this.fechagasto,
   });
 }
 
@@ -150,6 +154,7 @@ class MovimientoBloc extends Bloc<MovimientoEvento, MovimientoEstado> {
           event.idcarro,
           event.idcategoria,
           event.gastototal,
+          event.fechagasto
         );
 
         emit(MovimientoInsertado());
@@ -180,13 +185,8 @@ class MovimientoBloc extends Bloc<MovimientoEvento, MovimientoEstado> {
           event.idcategoria,
           event.gastototal,
           event.idmovimiento,
+          event.fechagasto
         );
-
-        print(event.nombremovimiento);
-        print(event.idcarro);
-        print(event.idcategoria);
-        print(event.gastototal);
-        print(event.idmovimiento);
 
         emit(MovimientoActualizado());
         add(GetMovimientos());
