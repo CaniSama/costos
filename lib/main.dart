@@ -12,17 +12,20 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final carrosDatabase = CarrosDatabase();
   await carrosDatabase.initializeDatabase();
+  final categoriaBlocInstance = CategoriaBloc(carrosDatabase);
+  final carroBlocInstance = MiBloc(carrosDatabase);
   runApp(
     MultiBlocProvider(
       providers: [
         BlocProvider<MiBloc>(
-          create: (context) => MiBloc(carrosDatabase),
+          create: (context) => carroBlocInstance,
         ),
         BlocProvider<CategoriaBloc>(
-          create: (context) => CategoriaBloc(carrosDatabase),
+          create: (context) => categoriaBlocInstance,
         ),
         BlocProvider<MovimientoBloc>(
-          create: (context) => MovimientoBloc(carrosDatabase),
+          create: (context) => MovimientoBloc(
+              carrosDatabase, categoriaBlocInstance, carroBlocInstance),
         ),
       ],
       child: const App(),
@@ -36,6 +39,7 @@ class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
+      
       debugShowCheckedModeBanner: false,
       home: Scaffold(body: MainApp()),
     );
@@ -77,7 +81,7 @@ class _MainAppState extends State<MainApp> {
     return Scaffold(
       appBar: AppBar(
         title: const Center(child: Text('Control de Gastos Vehicular')),
-        backgroundColor: const Color.fromARGB(255, 108, 108, 109),
+        backgroundColor: const Color.fromARGB(255, 122, 125, 139),
         actions: const [],
       ),
       body: BlocBuilder<MiBloc, CarroEstado>(
@@ -102,9 +106,9 @@ class _MainAppState extends State<MainApp> {
         ],
         currentIndex: _indiceSeleccionado,
         onTap: _onTabTapped,
-        backgroundColor: const Color.fromARGB(255, 108, 108, 109),
+        backgroundColor: const Color.fromARGB(255, 122, 125, 139),
         selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.grey,
+        
       ),
     );
   }
@@ -143,7 +147,7 @@ class ListaCarros extends StatelessWidget {
     );
   }
 
-  Widget _listaCarros(List<Map<String, dynamic>>? carros) {
+Widget _listaCarros(List<Map<String, dynamic>>? carros) {
   if (carros != null && carros.isNotEmpty) {
     return ListView.builder(
       itemCount: carros.length,
@@ -151,90 +155,88 @@ class ListaCarros extends StatelessWidget {
         final carro = carros[index];
         int carroID = carros[index]['idcarro'];
         int archivado = carros[index]['archivado'];
-        return ListTile(
-          title: Text(carro['apodo'] ?? 'No Apodo'),
-          
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min, // Ajusta el tamaño del Row al contenido
-            children: [
-              IconButton(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        title: const Center(child: Text('¿Eliminar Carro?')),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Cancelar'),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              context.read<MiBloc>().add(EliminarCarro(idCarro: carroID));
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Eliminar'),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
-                icon: const Icon(Icons.delete),
-                tooltip: 'Borrar',
+        int totalGasto = carro['totalgasto'] ?? 0;
+
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          elevation: 2,
+          color: archivado == 1 ? Colors.white : const Color.fromARGB(255, 184, 178, 178),
+          child: ListTile(
+            title: Text(
+              carro['apodo'] ?? 'No Apodo',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: archivado == 1 ? Colors.black : Colors.white,
               ),
-              const Padding(padding: EdgeInsets.all(8.0)),
-              IconButton(
-                onPressed: () {
-                  _mostrarModalEditar(context, carro);
-                },
-                icon: const Icon(Icons.edit),
-                tooltip: 'Editar',
+            ),
+            subtitle: Text(
+              'Gasto Total: $totalGasto',
+              style: TextStyle(
+                fontSize: 14,
+                color: archivado == 1 ? Colors.black : Colors.white,
               ),
-              const Padding(padding: EdgeInsets.all(8.0)),
-              IconButton(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        title: Center(
+            ),
+            trailing: Wrap(
+              spacing: 8,
+              children: [
+                IconButton(
+                  onPressed: () {
+                    archivado == 1
+                        ? _mostrarModalEditar(context, carro)
+                        : null;
+                  },
+                  icon: const Icon(Icons.edit, color: Colors.blue),
+                  tooltip: 'Editar',
+                ),
+                IconButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: Center(
                             child: archivado == 1
                                 ? const Text('¿Archivar Carro?')
-                                : const Text('¿Volver a activar?')),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Cancelar'),
+                                : const Text('¿Volver a activar?'),
                           ),
-                          TextButton(
-                            onPressed: () {
-                              context.read<MiBloc>().add(ArchivarCarro(idcarro: carroID));
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Archivar'),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
-                icon: const Icon(Icons.archive),
-                tooltip: 'Archivar',
-              ),
-            ],
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                              child: const Text('Cancelar'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                context
+                                    .read<MiBloc>()
+                                    .add(ArchivarCarro(idcarro: carroID));
+                                Navigator.of(context).pop();
+                              },
+                              child: const Text('Archivar'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                  icon: const Icon(Icons.archive, color: Colors.red),
+                  tooltip: 'Archivar',
+                ),
+              ],
+            ),
           ),
-          tileColor: archivado == 1 ? const Color.fromARGB(255, 255, 255, 255) : const Color.fromARGB(255, 221, 67, 56),
         );
       },
     );
   } else {
-    return const Center(child: Text('No hay carros disponibles'));
+    return const Center(
+      child: Text(
+        'No hay carros disponibles',
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      ),
+    );
   }
 }
 
@@ -262,6 +264,8 @@ class AgregarCarro extends StatefulWidget {
 class _AgregarCarroState extends State<AgregarCarro> {
   final _formKey = GlobalKey<FormState>();
   TextEditingController apodoController = TextEditingController();
+  bool isButtonDisabled = true;
+  String? errorText;
 
   @override
   Widget build(BuildContext context) {
@@ -270,7 +274,7 @@ class _AgregarCarroState extends State<AgregarCarro> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Nuevo Carro'),
-            backgroundColor: const Color.fromARGB(255, 108, 108, 109),
+            backgroundColor: const Color.fromARGB(255, 19, 121, 73),
           ),
           body: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -287,7 +291,26 @@ class _AgregarCarroState extends State<AgregarCarro> {
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8.0),
                         ),
+                        errorText: errorText,
                       ),
+                      onChanged: (value) {
+                        setState(() {
+                          isButtonDisabled = value.isEmpty ||
+                              containsSpecialCharacters(value) ||
+                              !containsLetter(value);
+
+                          // Actualizar el mensaje de error
+                          if (value.isEmpty) {
+                            errorText = 'Por favor, ingrese un apodo';
+                          } else if (containsSpecialCharacters(value)) {
+                            errorText = 'No se permiten caracteres especiales';
+                          } else if (!containsLetter(value)) {
+                            errorText = 'Debe contener al menos una letra';
+                          } else {
+                            errorText = null; // No hay error
+                          }
+                        });
+                      },
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Por favor, ingrese un apodo';
@@ -297,12 +320,15 @@ class _AgregarCarroState extends State<AgregarCarro> {
                     ),
                     const SizedBox(height: 10.0),
                     ElevatedButton(
-                      onPressed: () {
-                        _insertarCarro(context);
-                      },
+                      onPressed: isButtonDisabled
+                          ? null
+                          : () {
+                              _insertarCarro(context);
+                              Navigator.of(context).pop();
+                            },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromARGB(255, 54, 120, 243)                
-                       ),
+                        backgroundColor: const Color.fromARGB(255, 44, 47, 219),
+                      ),
                       child: const Text('Insertar Carro'),
                     ),
                   ],
@@ -313,6 +339,16 @@ class _AgregarCarroState extends State<AgregarCarro> {
         );
       },
     );
+  }
+
+  bool containsSpecialCharacters(String value) {
+    final specialCharacters = RegExp(r'[!@#$%^&*(),.?":{}|<>]');
+    return specialCharacters.hasMatch(value);
+  }
+
+  bool containsLetter(String value) {
+    final letterRegex = RegExp(r'[a-zA-Z]');
+    return letterRegex.hasMatch(value);
   }
 
   void _insertarCarro(BuildContext context) {
@@ -327,6 +363,8 @@ class _AgregarCarroState extends State<AgregarCarro> {
     }
   }
 }
+
+
 
 // Agrega un nuevo método para mostrar el modal de edición
 void _mostrarModalEditar(BuildContext context, Map<String, dynamic> carro) {
@@ -353,6 +391,7 @@ class EditarCarro extends StatefulWidget {
 
 class _EditarCarroState extends State<EditarCarro> {
   late TextEditingController apodoController;
+  bool isButtonDisabled = false;
 
   @override
   void initState() {
@@ -366,7 +405,7 @@ class _EditarCarroState extends State<EditarCarro> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar Carro'),
-        backgroundColor: const Color.fromARGB(255, 108, 108, 109), // Color para identificar la edición
+        backgroundColor: const Color.fromARGB(255, 56, 92, 153),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -381,21 +420,23 @@ class _EditarCarroState extends State<EditarCarro> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8.0),
                   ),
+                  errorText: _validateApodo(apodoController.text),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, ingrese un apodo';
-                  }
-                  return null;
+                onChanged: (value) {
+                  setState(() {
+                    isButtonDisabled = _validateApodo(value) != null;
+                  });
                 },
               ),
               const SizedBox(height: 10.0),
               ElevatedButton(
-                onPressed: () {
-                  _actualizarCarro(context);
-                },
+                onPressed: isButtonDisabled
+                    ? null
+                    : () {
+                        _actualizarCarro(context);
+                      },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 54, 120, 243) 
+                  backgroundColor: const Color.fromARGB(255, 44, 47, 219),
                 ),
                 child: const Text('Actualizar Carro'),
               ),
@@ -404,6 +445,20 @@ class _EditarCarroState extends State<EditarCarro> {
         ),
       ),
     );
+  }
+
+  String? _validateApodo(String value) {
+    if (value.isEmpty) {
+      return 'Por favor, ingrese un apodo';
+    } else if (containsSpecialCharacters(value)) {
+      return 'No se permiten caracteres especiales';
+    }
+    return null;
+  }
+
+  bool containsSpecialCharacters(String value) {
+    final specialCharacters = RegExp(r'[!@#$%^&*(),.?":{}|<>]');
+    return specialCharacters.hasMatch(value);
   }
 
   void _actualizarCarro(BuildContext context) {
@@ -416,11 +471,12 @@ class _EditarCarroState extends State<EditarCarro> {
           idcarro: widget.carro['idcarro'],
         ),
       );
-      Navigator.of(context)
-          .pop(); // Cierra el modal después de la actualización
+      Navigator.of(context).pop(); // Cierra el modal después de la actualización
     }
   }
 }
+
+//CATEGORIAS
 
 class ListaCategorias extends StatelessWidget {
   const ListaCategorias({super.key});
@@ -457,98 +513,90 @@ Widget _listaCategorias(List<Map<String, dynamic>>? categorias) {
         final categoria = categorias[index];
         int categoriaID = categorias[index]['idcategoria'];
         int archivado = categorias[index]['archivado'];
-        return ListTile(
-          title: Text(categoria['nombrecategoria'] ?? 'No hay nombre'),
-          tileColor: archivado == 1 ? Colors.white : Colors.red,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        title: const Center(
-                          child: Text('¿Eliminar Categoria?'),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Cancelar'),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              context.read<CategoriaBloc>().add(
-                                    EliminarCategoria(idcategoria: categoriaID),
-                                  );
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Eliminar'),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
-                icon: const Icon(Icons.delete),
-                tooltip: 'Borrar',
+        int totalGasto = categoria['totalgasto'] ?? 0;
+
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          elevation: 2,
+          color: archivado == 1 ? Colors.white : const Color.fromARGB(255, 184, 178, 178),
+          child: ListTile(
+            title: Text(
+              categoria['nombrecategoria'] ?? 'No hay nombre',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: archivado == 1 ? Colors.black : Colors.white,
               ),
-              const Padding(padding: EdgeInsets.all(8.0)),
-              IconButton(
-                onPressed: () {
-                  _mostrarModalEditarCategoria(context, categoria);
-                },
-                icon: const Icon(Icons.edit),
-                tooltip: 'Editar',
+            ),
+            subtitle: Text(
+              'Gasto Total: $totalGasto',
+              style: TextStyle(
+                fontSize: 14,
+                color: archivado == 1 ? Colors.black : Colors.white,
               ),
-              const Padding(padding: EdgeInsets.all(8.0)),
-              IconButton(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        title: Center(
-                          child: archivado == 1
-                              ? const Text('¿Archivar Categoria?')
-                              : const Text('¿Volver a activar?'),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Cancelar'),
+            ),
+            trailing: Wrap(
+              spacing: 8,
+              children: [
+                IconButton(
+                  onPressed: () {
+                    _mostrarModalEditarCategoria(context, categoria);
+                  },
+                  icon: const Icon(Icons.edit, color: Colors.blue),
+                  tooltip: 'Editar',
+                ),
+                IconButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: Center(
+                            child: archivado == 1
+                                ? const Text('¿Archivar Categoría?')
+                                : const Text('¿Volver a activar?'),
                           ),
-                          TextButton(
-                            onPressed: () {
-                              context.read<CategoriaBloc>().add(
-                                    ArchivarCategoria(idcategoria: categoriaID),
-                                  );
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Archivar'),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
-                icon: const Icon(Icons.archive),
-                tooltip: 'Archivar',
-              ),
-            ],
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                              child: const Text('Cancelar'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                context.read<CategoriaBloc>().add(
+                                    ArchivarCategoria(
+                                        idcategoria: categoriaID));
+                                Navigator.of(context).pop();
+                              },
+                              child: const Text('Archivar'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                  icon: const Icon(Icons.archive, color: Colors.red),
+                  tooltip: 'Archivar',
+                ),
+              ],
+            ),
           ),
         );
       },
     );
   } else {
-    return const Center(child: Text('No hay categorias disponibles'));
+    return const Center(
+      child: Text(
+        'No hay categorías disponibles',
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      ),
+    );
   }
 }
+
+
 
   void _mostrarModal(BuildContext context, String categorias) {
     showModalBottomSheet(
@@ -573,6 +621,8 @@ class AgregarCategoria extends StatefulWidget {
 class _AgregarCategoriaState extends State<AgregarCategoria> {
   final _formKey = GlobalKey<FormState>();
   TextEditingController nombreController = TextEditingController();
+  bool isButtonDisabled = true;
+  String? errorText;
 
   @override
   Widget build(BuildContext context) {
@@ -581,7 +631,7 @@ class _AgregarCategoriaState extends State<AgregarCategoria> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Nueva Categoria'),
-            backgroundColor: const Color.fromARGB(255, 108, 108, 109),
+            backgroundColor: const Color.fromARGB(255, 19, 121, 73),
           ),
           body: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -598,21 +648,45 @@ class _AgregarCategoriaState extends State<AgregarCategoria> {
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8.0),
                         ),
+                        errorText: errorText,
                       ),
+                      onChanged: (value) {
+                        setState(() {
+                          isButtonDisabled = value.isEmpty ||
+                              containsSpecialCharacters(value) ||
+                              !containsLetter(value);
+                          // Actualizar el mensaje de error
+                          errorText = value.isEmpty
+                              ? 'Por favor, ingrese un nombre para la categoria'
+                              : null;
+                          if (containsSpecialCharacters(value)) {
+                            errorText = 'No se permiten caracteres especiales';
+                          } else if (!containsLetter(value)) {
+                            errorText = 'Debe contener al menos una letra';
+                          }
+                        });
+                      },
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Por favor, ingrese un nombre para la categoria';
+                        } else if (containsSpecialCharacters(value)) {
+                          return 'No se permiten caracteres especiales';
+                        } else if (!containsLetter(value)) {
+                          return 'Debe contener al menos una letra';
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 10.0),
                     ElevatedButton(
-                      onPressed: () {
-                        _insertarCategoria(context);
-                      },
+                      onPressed: isButtonDisabled
+                          ? null
+                          : () {
+                              _insertarCategoria(context);
+                              Navigator.of(context).pop();
+                            },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromARGB(255, 54, 120, 243) 
+                        backgroundColor: const Color.fromARGB(255, 44, 47, 219),
                       ),
                       child: const Text('Insertar Categoria'),
                     ),
@@ -624,6 +698,16 @@ class _AgregarCategoriaState extends State<AgregarCategoria> {
         );
       },
     );
+  }
+
+  bool containsSpecialCharacters(String value) {
+    final specialCharacters = RegExp(r'[!@#$%^&*(),.?":{}|<>]');
+    return specialCharacters.hasMatch(value);
+  }
+
+  bool containsLetter(String value) {
+    final letterRegex = RegExp(r'[a-zA-Z]');
+    return letterRegex.hasMatch(value);
   }
 
   void _insertarCategoria(BuildContext context) {
@@ -639,7 +723,7 @@ class _AgregarCategoriaState extends State<AgregarCategoria> {
   }
 }
 
-// Agrega un nuevo método para mostrar el modal de edición
+
 void _mostrarModalEditarCategoria(
     BuildContext context, Map<String, dynamic> categoria) {
   showModalBottomSheet(
@@ -653,7 +737,6 @@ void _mostrarModalEditarCategoria(
   );
 }
 
-// Crea un nuevo widget para la edición del carro
 class EditarCategoria extends StatefulWidget {
   final Map<String, dynamic> categoria;
 
@@ -665,6 +748,7 @@ class EditarCategoria extends StatefulWidget {
 
 class _EditarCategoriaState extends State<EditarCategoria> {
   late TextEditingController nombreController;
+  bool isButtonDisabled = false;
 
   @override
   void initState() {
@@ -679,7 +763,7 @@ class _EditarCategoriaState extends State<EditarCategoria> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar Categoria'),
-        backgroundColor: const Color.fromARGB(255, 108, 108, 109), // Color para identificar la edición
+        backgroundColor: const Color.fromARGB(255, 56, 92, 153),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -690,25 +774,27 @@ class _EditarCategoriaState extends State<EditarCategoria> {
               TextFormField(
                 controller: nombreController,
                 decoration: InputDecoration(
-                  labelText: 'Apodo',
+                  labelText: 'Nombre de Categoria',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8.0),
                   ),
+                  errorText: _validateNombre(nombreController.text),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, ingrese un nombre de categoria';
-                  }
-                  return null;
+                onChanged: (value) {
+                  setState(() {
+                    isButtonDisabled = _validateNombre(value) != null;
+                  });
                 },
               ),
               const SizedBox(height: 10.0),
               ElevatedButton(
-                onPressed: () {
-                  _actualizarCategoria(context);
-                },
+                onPressed: isButtonDisabled
+                    ? null
+                    : () {
+                        _actualizarCategoria(context);
+                      },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 54, 120, 243) 
+                  backgroundColor: const Color.fromARGB(255, 44, 47, 219),
                 ),
                 child: const Text('Actualizar Categoria'),
               ),
@@ -717,6 +803,20 @@ class _EditarCategoriaState extends State<EditarCategoria> {
         ),
       ),
     );
+  }
+
+  String? _validateNombre(String value) {
+    if (value.isEmpty) {
+      return 'Por favor, ingrese un nombre de categoria';
+    } else if (containsSpecialCharacters(value)) {
+      return 'No se permiten caracteres especiales';
+    }
+    return null;
+  }
+
+  bool containsSpecialCharacters(String value) {
+    final specialCharacters = RegExp(r'[!@#$%^&*(),.?":{}|<>]');
+    return specialCharacters.hasMatch(value);
   }
 
   void _actualizarCategoria(BuildContext context) {
@@ -729,45 +829,23 @@ class _EditarCategoriaState extends State<EditarCategoria> {
           idcategoria: widget.categoria['idcategoria'],
         ),
       );
-      Navigator.of(context)
-          .pop(); // Cierra el modal después de la actualización
+      Navigator.of(context).pop(); // Cierra el modal después de la actualización
     }
   }
 }
 
-class ListaMovimientos extends StatefulWidget {
-  const ListaMovimientos({Key? key}) : super(key: key);
+//GASTOS
 
-  @override
-  _ListaMovimientosState createState() => _ListaMovimientosState();
-}
-
-class _ListaMovimientosState extends State<ListaMovimientos> {
-  final TextEditingController _filtroController = TextEditingController();
+class ListaMovimientos extends StatelessWidget {
+  const ListaMovimientos({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 158, 158, 156),
-        title: const Text('Lista de Movimientos'),
-        actions: [
-          IconButton(
-            onPressed: () {
-              _mostrarFiltroDialog(context);
-            },
-            icon: const Icon(Icons.filter_list),
-          ),
-        ],
-      ),
       body: BlocBuilder<MovimientoBloc, MovimientoEstado>(
         builder: (context, state) {
           if (state is GetAllMovimientos) {
-            List<Map<String, dynamic>> movimientos = state.movimientos;
-            if (_filtroController.text.isNotEmpty) {
-              movimientos = _filtrarMovimientos(movimientos);
-            }
-            return _listaMovimientos(movimientos);
+            return _listaMovimientos(state.movimientos);
           } else if (state is ErrorGetAllMovimientos) {
             return Center(child: Text('Error: ${state.mensajeError}'));
           } else {
@@ -786,116 +864,98 @@ class _ListaMovimientosState extends State<ListaMovimientos> {
     );
   }
 
-Widget _listaMovimientos(List<Map<String, dynamic>> movimientos) {
-  if (movimientos.isNotEmpty) {
+Widget _listaMovimientos(List<Map<String, dynamic>>? movimientos) {
+  if (movimientos != null && movimientos.isNotEmpty) {
     return ListView.builder(
       itemCount: movimientos.length,
       itemBuilder: (context, index) {
         final movimiento = movimientos[index];
-        int movimientoID = movimiento['idmovimiento'];
-        int gastototal = movimiento['gastototal'] ?? 0; // Obtener el monto del gasto
-        return ListTile(
-          title: Text(movimiento['nombremovimiento'] ?? 'No hay nombre'),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Gasto: \$${gastototal.toString()}'),
-              
-            ],
-          ), // Subtítulo para mostrar el monto
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        title: const Center(
-                          child: Text('¿Eliminar Movimiento?'),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Cancelar'),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              context.read<MovimientoBloc>().add(
-                                    EliminarMovimiento(idmovimiento: movimientoID),
-                                  );
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Eliminar'),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
-                icon: const Icon(Icons.delete),
-                tooltip: 'Borrar',
+        int movimientoID = movimientos[index]['idmovimiento'];
+        final gastototal = movimiento['gastototal'].toString();
+        final fechagasto = movimiento['fechagasto'];
+        String idcarro = movimiento['apodo'];
+        String idcategoria = movimiento['nombrecategoria'];
+
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          elevation: 2,
+          child: ListTile(
+            title: Text(
+              movimiento['nombremovimiento'] ?? 'No hay nombre',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
               ),
-              const Padding(padding: EdgeInsets.all(8.0)),
-              IconButton(
-                onPressed: () {
-                  _mostrarModalEditarMovimiento(context, movimiento);
-                },
-                icon: const Icon(Icons.edit),
-                tooltip: 'Editar',
-              ),
-            ],
+            ),
+              subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Asociado a: $idcarro'),
+                Text('categoría: $idcategoria'),
+                Text('Gasto: $gastototal'),
+                Text('Fecha del gasto: $fechagasto'),
+              ],
+            ),
+             trailing: Wrap(
+              spacing: 8,
+              children: [
+                IconButton(
+                  onPressed: () {
+                    _mostrarModalEditarMovimiento(context, movimiento);
+                  },
+                  icon: const Icon(Icons.edit, color: Colors.blue),
+                  tooltip: 'Editar',
+                ),
+                 IconButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Center(
+                            child: Text('¿Eliminar Movimiento?'),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                              child: const Text('Cancelar'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                context.read<MovimientoBloc>().add(
+                                    EliminarMovimiento(
+                                        idmovimiento: movimientoID));
+                                Navigator.of(context).pop();
+                              },
+                              child: const Text('Eliminar'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  tooltip: 'Borrar',
+                ),
+              ],
+            ),
           ),
-          
         );
       },
     );
   } else {
-    return const Center(child: Text('No hay gastos disponibles'));
-  }
-}
-
-
-  List<Map<String, dynamic>> _filtrarMovimientos(List<Map<String, dynamic>> movimientos) {
-    String filtro = _filtroController.text.toLowerCase();
-    return movimientos.where((movimiento) {
-      return movimiento['nombremovimiento'].toString().toLowerCase().contains(filtro);
-    }).toList();
-  }
-
-  void _mostrarFiltroDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Filtrar Movimientos'),
-          content: TextField(
-            controller: _filtroController,
-            decoration: const InputDecoration(labelText: 'Ingrese el filtro'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () {
-                // Puedes aplicar el filtro aquí si lo deseas
-                Navigator.of(context).pop();
-              },
-              child: const Text('Aceptar'),
-            ),
-          ],
-        );
-      },
+    return const Center(
+      child: Text(
+        'No hay gastos disponibles',
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      ),
     );
   }
 }
+
+
 
   void _mostrarModal(BuildContext context, String movimiento) {
     showModalBottomSheet(
@@ -909,6 +969,8 @@ Widget _listaMovimientos(List<Map<String, dynamic>> movimientos) {
     );
   }
 
+
+}
 
 class AgregarMovimiento extends StatefulWidget {
   const AgregarMovimiento({super.key});
@@ -924,9 +986,9 @@ class _AgregarMovimientoState extends State<AgregarMovimiento> {
   int categoriaSeleccionada = 1;
   TextEditingController gastosController = TextEditingController();
   DateTime selectedDate = DateTime.now();
+  bool isButtonDisabled = true;
 
-
-   Future<void> _selectDate(BuildContext context) async {
+  Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: selectedDate,
@@ -946,7 +1008,7 @@ class _AgregarMovimientoState extends State<AgregarMovimiento> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Nuevo Gasto'),
-        backgroundColor: const Color.fromARGB(255, 108, 108, 109),
+        backgroundColor: const Color.fromARGB(255, 19, 121, 73),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -956,82 +1018,84 @@ class _AgregarMovimientoState extends State<AgregarMovimiento> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    BlocBuilder<MiBloc, CarroEstado>(
+                      builder: (context, carroState) {
+                        if (carroState is GetAllCarros) {
+                          List<Map<String, dynamic>> carros = carroState.carros;
+                          return DropdownButton<int>(
+                            onChanged: (newValue) {
+                              setState(() {
+                                carroSeleccionado = newValue!;
+                              });
+                            },
+                            value: carroSeleccionado, // Valor seleccionado
+                            items: carros.map((carro) {
+                              return DropdownMenuItem<int>(
+                                value: carro['idcarro'],
+                                child: Text(carro['apodo'].toString()),
+                              );
+                            }).toList(),
+                          );
+                        } else {
+                          return const CircularProgressIndicator();
+                        }
+                      },
+                    ),
+                    BlocBuilder<CategoriaBloc, CategoriaEstado>(
+                      builder: (context, categoriaState) {
+                        if (categoriaState is GetAllCategorias) {
+                          List<Map<String, dynamic>> categorias =
+                              categoriaState.categorias;
+
+                          return DropdownButton<int>(
+                            value: categoriaSeleccionada,
+                            onChanged: (newValue) {
+                              setState(() {
+                                categoriaSeleccionada = newValue!;
+                              });
+                            },
+                            items: categorias.map((categoria) {
+                              return DropdownMenuItem<int>(
+                                value: categoria['idcategoria'],
+                                child: Text(
+                                    categoria['nombrecategoria'].toString()),
+                              );
+                            }).toList(),
+                          );
+                        } else {
+                          return const CircularProgressIndicator();
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10.0),
                 TextFormField(
                   controller: nombreController,
                   decoration: InputDecoration(
-                    labelText: 'Nombre Gasto',
+                    labelText: 'Concepto',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8.0),
                     ),
+                    errorText: isButtonDisabled
+                        ? 'Por favor, ingrese un nombre para el gasto'
+                        : null,
                   ),
+                  onChanged: (value) {
+                    setState(() {
+                      isButtonDisabled = value.isEmpty ||
+                          !containsLetter(value) ||
+                          value.trimLeft() != value;
+                    });
+                  },
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Por favor, ingrese un nombre para el gasto';
                     }
                     return null;
-                  },
-                ),
-                const SizedBox(height: 10.0),
-                BlocBuilder<MiBloc, CarroEstado>(
-                  builder: (context, carroState) {
-                    if (carroState is GetAllCarros) {
-                      List<Map<String, dynamic>> carros = carroState.carros;
-
-                      return DropdownButton<int>(
-                        onChanged: (newValue) {
-                          setState(() {
-                            carroSeleccionado = newValue!;
-                          });
-                        },
-                        value: carroSeleccionado,
-                        items: carros.map((carro) {
-                          return DropdownMenuItem<int>(
-                            value: carro['idcarro'],
-                            child: SizedBox(
-                              width: 200.0, // Ajusta el ancho del dropdown según tus necesidades
-                              child: Text(
-                                carro['apodo'].toString(),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      );
-                    } else {
-                      return const CircularProgressIndicator();
-                    }
-                  },
-                ),
-                const SizedBox(height: 10.0),
-                BlocBuilder<CategoriaBloc, CategoriaEstado>(
-                  builder: (context, categoriaState) {
-                    if (categoriaState is GetAllCategorias) {
-                      List<Map<String, dynamic>> categorias =
-                          categoriaState.categorias;
-
-                      return DropdownButton<int>(
-                        value: categoriaSeleccionada,
-                        onChanged: (newValue) {
-                          setState(() {
-                            categoriaSeleccionada = newValue!;
-                          });
-                        },
-                        items: categorias.map((categoria) {
-                          return DropdownMenuItem<int>(
-                            value: categoria['idcategoria'],
-                            child: SizedBox(
-                              width: 200.0, // Ajusta el ancho del dropdown según tus necesidades
-                              child: Text(
-                                categoria['nombrecategoria'].toString(),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      );
-                    } else {
-                      return const CircularProgressIndicator();
-                    }
                   },
                 ),
                 const SizedBox(height: 10.0),
@@ -1054,25 +1118,22 @@ class _AgregarMovimientoState extends State<AgregarMovimiento> {
                     return null;
                   },
                 ),
-             const SizedBox(height: 10.0),
+                const SizedBox(height: 10.0),
                 ElevatedButton(
                   onPressed: () => _selectDate(context),
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.white, backgroundColor: const Color.fromARGB(255, 54, 120, 243),
-
-                  ),
                   child: Text(
-                    'Seleccionar fecha: ${DateFormat('yyyy-MM-dd').format(selectedDate)}',
-                    style: const TextStyle(fontSize: 16.0),
-                  ),
+                      'Seleccionar fecha: ${DateFormat('yyyy-MM-dd').format(selectedDate)}'),
                 ),
-                const SizedBox(height: 16.0), // Agrega más espacio entre los botones
+                const SizedBox(height: 10.0),
                 ElevatedButton(
-                  onPressed: () {
-                    _insertarMovimiento(context);
-                  },
+                  onPressed: isButtonDisabled
+                      ? null
+                      : () {
+                          _insertarMovimiento(context);
+                          Navigator.of(context).pop();
+                        },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 54, 120, 243),
+                    backgroundColor: const Color.fromARGB(255, 44, 47, 219),
                   ),
                   child: const Text('Insertar Gasto'),
                 ),
@@ -1082,6 +1143,11 @@ class _AgregarMovimientoState extends State<AgregarMovimiento> {
         ),
       ),
     );
+  }
+
+  bool containsLetter(String value) {
+    final letterRegex = RegExp(r'[a-zA-Z]');
+    return letterRegex.hasMatch(value);
   }
 
   void _insertarMovimiento(BuildContext context) {
@@ -1104,7 +1170,7 @@ class _AgregarMovimientoState extends State<AgregarMovimiento> {
   }
 }
 
-// Agrega un nuevo método para mostrar el modal de edición
+
 void _mostrarModalEditarMovimiento(
     BuildContext context, Map<String, dynamic> movimiento) {
   showModalBottomSheet(
@@ -1118,7 +1184,6 @@ void _mostrarModalEditarMovimiento(
   );
 }
 
-// Crea un nuevo widget para la edición del carro
 class EditarMovimiento extends StatefulWidget {
   final Map<String, dynamic> movimiento;
 
@@ -1134,6 +1199,7 @@ class _EditarMovimientoState extends State<EditarMovimiento> {
   int categoriaSeleccionada = 1;
   TextEditingController gastosController = TextEditingController();
   DateTime selectedFecha = DateTime.now();
+  bool isButtonDisabled = false;
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -1157,16 +1223,24 @@ class _EditarMovimientoState extends State<EditarMovimiento> {
     categoriaSeleccionada = widget.movimiento['idcategoria'];
     gastosController.text = widget.movimiento['gastototal'].toString();
     String fechaDB = widget.movimiento['fechagasto'];
-    selectedFecha = DateTime.parse(
-        fechaDB); // Asigna la fecha de la base de datos a selectedDate // Añadir este print para verificar el valor de selectedDate
+    selectedFecha = DateTime.parse(fechaDB);
+    print(selectedFecha);
+    _validateFields();
+  }
+
+  void _validateFields() {
+    setState(() {
+      isButtonDisabled =
+          nombreController.text.isEmpty || gastosController.text.isEmpty;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Nuevo Gasto'),
-         backgroundColor: const Color.fromARGB(255, 158, 158, 156),
+        title: const Text('Editar Gasto'),
+        backgroundColor: const Color.fromARGB(255, 56, 92, 153),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -1174,6 +1248,63 @@ class _EditarMovimientoState extends State<EditarMovimiento> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  BlocBuilder<MiBloc, CarroEstado>(
+                    builder: (context, carroState) {
+                      if (carroState is GetAllCarros) {
+                        List<Map<String, dynamic>> carros = carroState.carros;
+
+                        return DropdownButton<int>(
+                          onChanged: (newValue) {
+                            setState(() {
+                              carroSeleccionado = newValue!;
+                            });
+                          },
+                          value: carroSeleccionado,
+                          items: carros.map((carro) {
+                            return DropdownMenuItem<int>(
+                              value: carro['idcarro'],
+                              child: Text(carro['apodo'].toString()),
+                            );
+                          }).toList(),
+                        );
+                      } else {
+                        return const CircularProgressIndicator();
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10.0),
+                  BlocBuilder<CategoriaBloc, CategoriaEstado>(
+                    builder: (context, categoriaState) {
+                      if (categoriaState is GetAllCategorias) {
+                        List<Map<String, dynamic>> categorias =
+                            categoriaState.categorias;
+
+                        return DropdownButton<int>(
+                          value: categoriaSeleccionada,
+                          onChanged: (newValue) {
+                            setState(() {
+                              categoriaSeleccionada = newValue!;
+                            });
+                          },
+                          items: categorias.map((categoria) {
+                            return DropdownMenuItem<int>(
+                              value: categoria['idcategoria'],
+                              child:
+                                  Text(categoria['nombrecategoria'].toString()),
+                            );
+                          }).toList(),
+                        );
+                      } else {
+                        return const CircularProgressIndicator();
+                      }
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10.0),
               TextFormField(
                 controller: nombreController,
                 decoration: InputDecoration(
@@ -1188,56 +1319,8 @@ class _EditarMovimientoState extends State<EditarMovimiento> {
                   }
                   return null;
                 },
-              ),
-              const SizedBox(height: 10.0),
-              BlocBuilder<MiBloc, CarroEstado>(
-                builder: (context, carroState) {
-                  if (carroState is GetAllCarros) {
-                    List<Map<String, dynamic>> carros = carroState.carros;
-
-                    return DropdownButton<int>(
-                      onChanged: (newValue) {
-                        setState(() {
-                          carroSeleccionado = newValue!;
-                        });
-                      },
-                      value: carroSeleccionado, // Valor seleccionado
-                      items: carros.map((carro) {
-                        return DropdownMenuItem<int>(
-                          value: carro['idcarro'],
-                          child: Text(carro['apodo'].toString()),
-                        );
-                      }).toList(),
-                    );
-                  } else {
-                    return const CircularProgressIndicator();
-                  }
-                },
-              ),
-              const SizedBox(height: 10.0),
-              BlocBuilder<CategoriaBloc, CategoriaEstado>(
-                builder: (context, categoriaState) {
-                  if (categoriaState is GetAllCategorias) {
-                    List<Map<String, dynamic>> categorias =
-                        categoriaState.categorias;
-
-                    return DropdownButton<int>(
-                      value: categoriaSeleccionada,
-                      onChanged: (newValue) {
-                        setState(() {
-                          categoriaSeleccionada = newValue!;
-                        });
-                      },
-                      items: categorias.map((categoria) {
-                        return DropdownMenuItem<int>(
-                          value: categoria['idcategoria'],
-                          child: Text(categoria['nombrecategoria'].toString()),
-                        );
-                      }).toList(),
-                    );
-                  } else {
-                    return const CircularProgressIndicator();
-                  }
+                onChanged: (_) {
+                  _validateFields();
                 },
               ),
               const SizedBox(height: 10.0),
@@ -1259,24 +1342,25 @@ class _EditarMovimientoState extends State<EditarMovimiento> {
                   }
                   return null;
                 },
+                onChanged: (_) {
+                  _validateFields();
+                },
               ),
               const SizedBox(height: 10.0),
               ElevatedButton(
-                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 54, 120, 243) 
-                ),
                 onPressed: () => _selectDate(context),
-                
                 child: Text(
                     'Seleccionar fecha: ${DateFormat('yyyy-MM-dd').format(selectedFecha)}'),
               ),
               const SizedBox(height: 10.0),
               ElevatedButton(
-                onPressed: () {
-                  _actualizarMovimiento(context);
-                },
+                onPressed: isButtonDisabled
+                    ? null
+                    : () {
+                        _actualizarMovimiento(context);
+                      },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 54, 120, 243) 
+                  backgroundColor: const Color.fromARGB(255, 44, 47, 219),
                 ),
                 child: const Text('Actualizar Gasto'),
               ),

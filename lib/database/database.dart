@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
+
 late Database db;
 
 class CarrosDatabase {
@@ -21,7 +22,7 @@ class CarrosDatabase {
               'CREATE TABLE IF NOT EXISTS categorias (idcategoria INTEGER PRIMARY KEY AUTOINCREMENT, nombrecategoria TEXT(35) NOT NULL, archivado INT default 1)');
 
           await db.execute(
-              ' CREATE TABLE IF NOT EXISTS movimientos (idmovimiento INTEGER PRIMARY KEY AUTOINCREMENT, nombremovimiento TEXT NOT NULL, idcarro INT NOT NULL, idcategoria INT NOT NULL, gastototal INT NOT NULL, fechagasto TEXT(30) NOT NULL)');
+              'CREATE TABLE IF NOT EXISTS movimientos (idmovimiento INTEGER PRIMARY KEY AUTOINCREMENT, nombremovimiento TEXT NOT NULL, idcarro INT NOT NULL, idcategoria INT NOT NULL, gastototal INT NOT NULL, fechagasto TEXT(30) NOT NULL)');
         },
       ),
     );
@@ -29,9 +30,9 @@ class CarrosDatabase {
 
 //BD PARA CARROS
 
-  Future<List<Map<String, dynamic>>> getCarros() async {
-    var resultadoConsulta =
-        await db.rawQuery('SELECT * FROM carros ORDER BY archivado DESC;');
+Future<List<Map<String, dynamic>>> getCarros() async {
+    var resultadoConsulta = await db.rawQuery(
+        'SELECT carros.*, COALESCE(SUM(movimientos.gastototal), 0) AS totalgasto FROM carros LEFT JOIN movimientos ON carros.idcarro = movimientos.idcarro GROUP BY carros.idcarro ORDER BY carros.archivado DESC, carros.apodo ASC;');
     return resultadoConsulta;
   }
 
@@ -56,8 +57,8 @@ class CarrosDatabase {
 
 //DB PARA CATEGORIAS
   Future<List<Map<String, dynamic>>> getCategorias() async {
-    var resultadoConsulta =
-        await db.rawQuery('SELECT * FROM categorias ORDER BY archivado DESC;');
+    var resultadoConsulta = await db.rawQuery(
+        'SELECT categorias.*, COALESCE(SUM(movimientos.gastototal), 0) AS totalgasto FROM categorias LEFT JOIN movimientos ON categorias.idcategoria = movimientos.idcategoria GROUP BY categorias.idcategoria ORDER BY categorias.archivado DESC, categorias.nombrecategoria ASC;');
     return resultadoConsulta;
   }
 
@@ -83,20 +84,11 @@ class CarrosDatabase {
   }
 
 //DB PARA GASTOS
-Future<List<Map<String, dynamic>>> getMovimientos({int? idcarro, int? idcategoria}) async {
-  String query = 'SELECT * FROM movimientos WHERE 1=1';
-
-  if (idcarro != null) {
-    query += ' AND idcarro = $idcarro';
+  Future<List<Map<String, dynamic>>> getMovimientos() async {
+    var resultadoConsulta = await db.rawQuery(
+        'SELECT * FROM movimientos INNER JOIN carros ON movimientos.idcarro = carros.idcarro INNER JOIN categorias ON movimientos.idcategoria = categorias.idcategoria ORDER BY nombremovimiento ASC;');
+    return resultadoConsulta;
   }
-
-  if (idcategoria != null) {
-    query += ' AND idcategoria = $idcategoria';
-  }
-
-  var resultadoConsulta = await db.rawQuery(query);
-  return resultadoConsulta;
-}
 
   Future<void> addMovimiento(
     String nombremovimiento,
@@ -110,9 +102,9 @@ Future<List<Map<String, dynamic>>> getMovimientos({int? idcarro, int? idcategori
         'INSERT INTO movimientos (nombremovimiento, idcarro, idcategoria, gastototal, fechagasto) VALUES (?, ?, ?, ?, ?)',
         [nombremovimiento, idcarro, idcategoria, gastototal, fechagasto],
       );
-     
+      
     } catch (e) {
-      print('Error al insertar el movimiento: $e');
+      
       // Maneja el error de inserción aquí si es necesario
     }
   }

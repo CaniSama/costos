@@ -16,6 +16,8 @@ class CarroSeleccionado extends CarroEvento {
 
 class GetCarros extends CarroEvento {}
 
+class GetCarrosdl extends CarroEvento {}
+
 class InsertarCarro extends CarroEvento {
   final String apodo;
 
@@ -61,6 +63,12 @@ class GetAllCarros extends CarroEstado {
   GetAllCarros({required this.carros});
 }
 
+class GetAllCarrosdl extends CarroEstado {
+  final List<Map<String, dynamic>> carrosdl;
+
+  GetAllCarrosdl({required this.carrosdl});
+}
+
 class CarroInsertado extends CarroEstado {}
 
 class CarroEliminado extends CarroEstado {}
@@ -102,6 +110,13 @@ class ErrorAlArchivarCarro extends CarroEstado {
   final String mensajeError;
 
   ErrorAlArchivarCarro({required this.mensajeError});
+}
+
+class ErrorGetAllCarrosDL extends CarroEstado {
+  @override
+  final String mensajeError;
+
+  ErrorGetAllCarrosDL({required this.mensajeError});
 }
 //BLOC
 
@@ -173,5 +188,7 @@ class MiBloc extends Bloc<CarroEvento, CarroEstado> {
         emit(ErrorAlArchivarCarro(mensajeError: 'Error al insertar el carro.'));
       }
     });
+
+
   }
 }

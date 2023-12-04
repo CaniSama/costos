@@ -1,5 +1,8 @@
 import 'package:bloc/bloc.dart';
+import 'package:costos/bloc/bloc.dart';
 import 'package:costos/database/database.dart';
+import 'categoriasbloc.dart';
+
 
 //Eventos
 abstract class MovimientoEvento {}
@@ -14,7 +17,7 @@ class MovimientoSeleccionado extends MovimientoEvento {
 
 class GetMovimientos extends MovimientoEvento {}
 
-class GetCarrosCategoriasList extends MovimientoEvento {}
+class GetCarrosDl extends MovimientoEvento {}
 
 class InsertarMovimiento extends MovimientoEvento {
   final String nombremovimiento;
@@ -55,7 +58,6 @@ class UpdateMovimiento extends MovimientoEvento {
     required this.fechagasto,
   });
 }
-
 //Estados
 
 abstract class MovimientoEstado {
@@ -76,11 +78,10 @@ class GetAllMovimientos extends MovimientoEstado {
   GetAllMovimientos({required this.movimientos});
 }
 
-class GetAllCarrosCategoriasList extends MovimientoEstado {
-  final List<Map<String, dynamic>> carros;
-  final List<Map<String, dynamic>> categorias;
+class GetAllCarrosDl extends MovimientoEstado {
+  final List<Map<String, dynamic>> carrosdl;
 
-  GetAllCarrosCategoriasList({required this.carros, required this.categorias});
+  GetAllCarrosDl({required this.carrosdl});
 }
 
 class MovimientoInsertado extends MovimientoEstado {}
@@ -94,6 +95,13 @@ class ErrorGetAllMovimientos extends MovimientoEstado {
   final String mensajeError;
 
   ErrorGetAllMovimientos({required this.mensajeError});
+}
+
+class ErrorGetAllCarrosDl extends MovimientoEstado {
+  @override
+  final String mensajeError;
+
+  ErrorGetAllCarrosDl({required this.mensajeError});
 }
 
 class ErrorGetAllCarrosCategoriasList extends MovimientoEstado {
@@ -126,8 +134,11 @@ class ErrorAlActualizarMovimiento extends MovimientoEstado {
 //Bloc
 
 class MovimientoBloc extends Bloc<MovimientoEvento, MovimientoEstado> {
+  final CategoriaBloc categoriaBloc;
+  final MiBloc carroBloc;
   final CarrosDatabase dbCarro;
-  MovimientoBloc(this.dbCarro) : super(EstadoMovimientoInicial()) {
+  MovimientoBloc(this.dbCarro, this.categoriaBloc, this.carroBloc)
+      : super(EstadoMovimientoInicial()) {
     on<MovimientoInicializado>((event, emit) {
       emit(EstadoMovimientoInicial());
     });
@@ -147,6 +158,8 @@ class MovimientoBloc extends Bloc<MovimientoEvento, MovimientoEstado> {
       }
     });
 
+
+
     on<InsertarMovimiento>((event, emit) async {
       try {
         await dbCarro.addMovimiento(
@@ -154,12 +167,13 @@ class MovimientoBloc extends Bloc<MovimientoEvento, MovimientoEstado> {
           event.idcarro,
           event.idcategoria,
           event.gastototal,
-          event.fechagasto
+          event.fechagasto,
         );
 
         emit(MovimientoInsertado());
         add(GetMovimientos());
-        // add(GetMovimientos());
+        carroBloc.add(GetCarros());
+        categoriaBloc.add(GetCategorias());
       } catch (e) {
         emit(ErrorAlInsertarMovimiento(
             mensajeError: 'Error al insertar el movimiento.'));
@@ -171,6 +185,9 @@ class MovimientoBloc extends Bloc<MovimientoEvento, MovimientoEstado> {
         dbCarro.deleteMovimiento(event.idmovimiento);
         emit(MovimientoEliminado());
         add(GetMovimientos());
+
+        carroBloc.add(GetCarros());
+        categoriaBloc.add(GetCategorias());
       } catch (e) {
         emit(ErrorAlEliminarMovimiento(
             mensajeError: 'Error al eliminar el movimiento.'));
@@ -185,11 +202,14 @@ class MovimientoBloc extends Bloc<MovimientoEvento, MovimientoEstado> {
           event.idcategoria,
           event.gastototal,
           event.idmovimiento,
-          event.fechagasto
+          event.fechagasto,
         );
 
         emit(MovimientoActualizado());
         add(GetMovimientos());
+
+        carroBloc.add(GetCarros());
+        categoriaBloc.add(GetCategorias());
       } catch (e) {
         emit(ErrorAlActualizarMovimiento(
             mensajeError: 'Error al insertar el carro.'));
