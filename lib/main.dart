@@ -836,8 +836,16 @@ class _EditarCategoriaState extends State<EditarCategoria> {
 
 //GASTOS
 
-class ListaMovimientos extends StatelessWidget {
+class ListaMovimientos extends StatefulWidget {
   const ListaMovimientos({super.key});
+
+  @override
+  State<ListaMovimientos> createState() => _ListaMovimientosState();
+}
+
+class _ListaMovimientosState extends State<ListaMovimientos> {
+
+  TextEditingController barraBusqueda = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -845,11 +853,47 @@ class ListaMovimientos extends StatelessWidget {
       body: BlocBuilder<MovimientoBloc, MovimientoEstado>(
         builder: (context, state) {
           if (state is GetAllMovimientos) {
-            return _listaMovimientos(state.movimientos);
+            List<Map<String, dynamic>> gastosFiltrados = state.movimientos
+                .where((movimiento) => movimiento['nombremovimiento']!
+                    .toLowerCase()
+                    .contains(barraBusqueda.text.toLowerCase()))
+                .toList();
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: TextField(
+                    controller: barraBusqueda,
+                    decoration: InputDecoration(
+                      labelText: 'Buscar',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Color.fromARGB(255, 0, 0, 0)),
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Color.fromARGB(255, 0, 0, 0)),
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Color.fromARGB(255, 0, 0, 0)),
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                    ),
+                    onChanged: (value) {
+                      setState(() {});
+                    },
+                  ),
+                ),
+                Expanded(
+                  child: _listaMovimientos(gastosFiltrados),
+                ),
+              ],
+            );
           } else if (state is ErrorGetAllMovimientos) {
             return Center(child: Text('Error: ${state.mensajeError}'));
           } else {
-            return Center(child: Text('${state.mensajeError}'));
+            return const Center(child: CircularProgressIndicator());
           }
         },
       ),
@@ -863,8 +907,10 @@ class ListaMovimientos extends StatelessWidget {
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
+}
 
 Widget _listaMovimientos(List<Map<String, dynamic>>? movimientos) {
+  
   if (movimientos != null && movimientos.isNotEmpty) {
     return ListView.builder(
       itemCount: movimientos.length,
@@ -955,8 +1001,6 @@ Widget _listaMovimientos(List<Map<String, dynamic>>? movimientos) {
   }
 }
 
-
-
   void _mostrarModal(BuildContext context, String movimiento) {
     showModalBottomSheet(
       context: context,
@@ -969,8 +1013,6 @@ Widget _listaMovimientos(List<Map<String, dynamic>>? movimientos) {
     );
   }
 
-
-}
 
 class AgregarMovimiento extends StatefulWidget {
   const AgregarMovimiento({super.key});
