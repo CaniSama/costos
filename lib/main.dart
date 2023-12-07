@@ -854,9 +854,19 @@ class _ListaMovimientosState extends State<ListaMovimientos> {
         builder: (context, state) {
           if (state is GetAllMovimientos) {
             List<Map<String, dynamic>> gastosFiltrados = state.movimientos
-                .where((movimiento) => movimiento['nombremovimiento']!
-                    .toLowerCase()
-                    .contains(barraBusqueda.text.toLowerCase()))
+                .where((movimiento) =>
+                    movimiento['nombremovimiento']!
+                        .toLowerCase()
+                        .contains(barraBusqueda.text.toLowerCase()) ||
+                    movimiento['apodo']!
+                        .toLowerCase()
+                        .contains(barraBusqueda.text.toLowerCase()) ||
+                    movimiento['nombrecategoria']!
+                        .toLowerCase()
+                        .contains(barraBusqueda.text.toLowerCase()) ||
+                    movimiento['fechagasto']!
+                        .toLowerCase()
+                        .contains(barraBusqueda.text.toLowerCase()))
                 .toList();
             return Column(
               children: [
