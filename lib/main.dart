@@ -13,11 +13,11 @@ void main() async {
   final carrosDatabase = CarrosDatabase();
   await carrosDatabase.initializeDatabase();
   final categoriaBlocInstance = CategoriaBloc(carrosDatabase);
-  final carroBlocInstance = MiBloc(carrosDatabase);
+  final carroBlocInstance = CarroBloc(carrosDatabase);
   runApp(
     MultiBlocProvider(
       providers: [
-        BlocProvider<MiBloc>(
+        BlocProvider<CarroBloc>(
           create: (context) => carroBlocInstance,
         ),
         BlocProvider<CategoriaBloc>(
@@ -58,8 +58,8 @@ class _MainAppState extends State<MainApp> {
   void initState() {
     super.initState();
     //CARROS
-    BlocProvider.of<MiBloc>(context).add(Inicializado());
-    BlocProvider.of<MiBloc>(context).add(GetCarros());
+    BlocProvider.of<CarroBloc>(context).add(Inicializado());
+    BlocProvider.of<CarroBloc>(context).add(GetCarros());
     //CATEGORIAS
     BlocProvider.of<CategoriaBloc>(context).add(CategoriaInicializada());
     BlocProvider.of<CategoriaBloc>(context).add(GetCategorias());
@@ -84,7 +84,7 @@ class _MainAppState extends State<MainApp> {
         backgroundColor: const Color.fromARGB(255, 122, 125, 139),
         actions: const [],
       ),
-      body: BlocBuilder<MiBloc, CarroEstado>(
+      body: BlocBuilder<CarroBloc, CarroEstado>(
         builder: (context, state) {
           return _paginas[_indiceSeleccionado];
         },
@@ -125,7 +125,7 @@ class ListaCarros extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: BlocBuilder<MiBloc, CarroEstado>(
+      body: BlocBuilder<CarroBloc, CarroEstado>(
         builder: (context, state) {
           if (state is GetAllCarros) {
             return _listaCarros(state.carros);
@@ -210,7 +210,7 @@ Widget _listaCarros(List<Map<String, dynamic>>? carros) {
                             TextButton(
                               onPressed: () {
                                 context
-                                    .read<MiBloc>()
+                                    .read<CarroBloc>()
                                     .add(ArchivarCarro(idcarro: carroID));
                                 Navigator.of(context).pop();
                               },
@@ -269,7 +269,7 @@ class _AgregarCarroState extends State<AgregarCarro> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<MiBloc, CarroEstado>(
+    return BlocBuilder<CarroBloc, CarroEstado>(
       builder: (context, state) {
         return Scaffold(
           appBar: AppBar(
@@ -352,7 +352,7 @@ class _AgregarCarroState extends State<AgregarCarro> {
   }
 
   void _insertarCarro(BuildContext context) {
-    final miBloc = BlocProvider.of<MiBloc>(context);
+    final miBloc = BlocProvider.of<CarroBloc>(context);
 
     if (_formKey.currentState?.validate() ?? false) {
       miBloc.add(
@@ -462,7 +462,7 @@ class _EditarCarroState extends State<EditarCarro> {
   }
 
   void _actualizarCarro(BuildContext context) {
-    final miBloc = BlocProvider.of<MiBloc>(context);
+    final miBloc = BlocProvider.of<CarroBloc>(context);
 
     if (apodoController.text.isNotEmpty) {
       miBloc.add(
@@ -1034,8 +1034,8 @@ class AgregarMovimiento extends StatefulWidget {
 class _AgregarMovimientoState extends State<AgregarMovimiento> {
   final _formKey = GlobalKey<FormState>();
   TextEditingController nombreController = TextEditingController();
-  int carroSeleccionado = 1;
-  int categoriaSeleccionada = 1;
+  int carroSeleccionado = 0;
+  int categoriaSeleccionada = 0;
   TextEditingController gastosController = TextEditingController();
   DateTime selectedDate = DateTime.now();
   bool isButtonDisabled = true;
@@ -1069,27 +1069,37 @@ class _AgregarMovimientoState extends State<AgregarMovimiento> {
             key: _formKey,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    BlocBuilder<MiBloc, CarroEstado>(
+                    BlocBuilder<CarroBloc, CarroEstado>(
                       builder: (context, carroState) {
                         if (carroState is GetAllCarros) {
-                          List<Map<String, dynamic>> carros = carroState.carros;
+                          List<Map<String, dynamic>> carros = carroState
+                              .carrosArchivados; // Usar carrosArchivados en lugar de carros
+
                           return DropdownButton<int>(
                             onChanged: (newValue) {
                               setState(() {
-                                carroSeleccionado = newValue!;
+                                if (newValue != null && newValue != 0) {
+                                  carroSeleccionado = newValue;
+                                }
                               });
                             },
-                            value: carroSeleccionado, // Valor seleccionado
-                            items: carros.map((carro) {
-                              return DropdownMenuItem<int>(
-                                value: carro['idcarro'],
-                                child: Text(carro['apodo'].toString()),
-                              );
-                            }).toList(),
+                            value: carroSeleccionado,
+                            items: [
+                              const DropdownMenuItem<int>(
+                                value: 0,
+                                child: Text('Seleccione un carro'),
+                              ),
+                              ...carros.map((carro) {
+                                return DropdownMenuItem<int>(
+                                  value: carro['idcarro'],
+                                  child: Text(carro['apodo'].toString()),
+                                );
+                              }).toList(),
+                            ],
                           );
                         } else {
                           return const CircularProgressIndicator();
@@ -1100,7 +1110,7 @@ class _AgregarMovimientoState extends State<AgregarMovimiento> {
                       builder: (context, categoriaState) {
                         if (categoriaState is GetAllCategorias) {
                           List<Map<String, dynamic>> categorias =
-                              categoriaState.categorias;
+                              categoriaState.categoriasarchivadas;
 
                           return DropdownButton<int>(
                             value: categoriaSeleccionada,
@@ -1109,13 +1119,20 @@ class _AgregarMovimientoState extends State<AgregarMovimiento> {
                                 categoriaSeleccionada = newValue!;
                               });
                             },
-                            items: categorias.map((categoria) {
-                              return DropdownMenuItem<int>(
-                                value: categoria['idcategoria'],
-                                child: Text(
-                                    categoria['nombrecategoria'].toString()),
-                              );
-                            }).toList(),
+                            items: [
+                              const DropdownMenuItem<int>(
+                                value: 0,
+                                child: Text('Seleccione una categoría'),
+                              ),
+                              ...categorias.map((categoria) {
+                                return DropdownMenuItem<int>(
+                                  value: categoria['idcategoria'],
+                                  child: Text(
+                                    categoria['nombrecategoria'].toString(),
+                                  ),
+                                );
+                              }).toList(),
+                            ],
                           );
                         } else {
                           return const CircularProgressIndicator();
@@ -1276,7 +1293,7 @@ class _EditarMovimientoState extends State<EditarMovimiento> {
     gastosController.text = widget.movimiento['gastototal'].toString();
     String fechaDB = widget.movimiento['fechagasto'];
     selectedFecha = DateTime.parse(fechaDB);
-    print(selectedFecha);
+    
     _validateFields();
   }
 
@@ -1300,10 +1317,10 @@ class _EditarMovimientoState extends State<EditarMovimiento> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Row(
+ Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  BlocBuilder<MiBloc, CarroEstado>(
+                  BlocBuilder<CarroBloc, CarroEstado>(
                     builder: (context, carroState) {
                       if (carroState is GetAllCarros) {
                         List<Map<String, dynamic>> carros = carroState.carros;
@@ -1314,7 +1331,7 @@ class _EditarMovimientoState extends State<EditarMovimiento> {
                               carroSeleccionado = newValue!;
                             });
                           },
-                          value: carroSeleccionado,
+                          value: carroSeleccionado, // Valor seleccionado
                           items: carros.map((carro) {
                             return DropdownMenuItem<int>(
                               value: carro['idcarro'],

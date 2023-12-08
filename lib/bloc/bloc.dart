@@ -59,14 +59,9 @@ class CarroSeleccionadoEstado extends CarroEstado {
 
 class GetAllCarros extends CarroEstado {
   final List<Map<String, dynamic>> carros;
+  final List<Map<String, dynamic>> carrosArchivados;
 
-  GetAllCarros({required this.carros});
-}
-
-class GetAllCarrosdl extends CarroEstado {
-  final List<Map<String, dynamic>> carrosdl;
-
-  GetAllCarrosdl({required this.carrosdl});
+  GetAllCarros({required this.carros, required this.carrosArchivados});
 }
 
 class CarroInsertado extends CarroEstado {}
@@ -112,23 +107,20 @@ class ErrorAlArchivarCarro extends CarroEstado {
   ErrorAlArchivarCarro({required this.mensajeError});
 }
 
-class ErrorGetAllCarrosDL extends CarroEstado {
-  @override
-  final String mensajeError;
-
-  ErrorGetAllCarrosDL({required this.mensajeError});
-}
 //BLOC
 
-class MiBloc extends Bloc<CarroEvento, CarroEstado> {
-  final CarrosDatabase carrosDatabase;
+class CarroBloc extends Bloc<CarroEvento, CarroEstado> {
+  final CarrosDatabase dbCarro;
+  late List<Map<String, dynamic>> allCarros = []; // Lista de todos los carros
+  late List<Map<String, dynamic>> carrosArchivados =
+      []; // Lista de carros archivados
 
-  MiBloc(this.carrosDatabase) : super(EstadoInicial()) {
-    
-     on<Inicializado>((event, emit) {
+  CarroBloc(this.dbCarro) : super(EstadoInicial()) {
+    on<Inicializado>((event, emit) {
       emit(EstadoInicial());
     });
 
+//Carros
     on<CarroSeleccionado>((event, emit) {
       final int idSeleccionado = event.indiceSeleccionado;
       emit(CarroSeleccionadoEstado(idSeleccionado: idSeleccionado));
@@ -136,8 +128,11 @@ class MiBloc extends Bloc<CarroEvento, CarroEstado> {
 
     on<GetCarros>((event, emit) async {
       try {
-        final carros = await carrosDatabase.getCarros();
-        emit(GetAllCarros(carros: carros));
+        final allCarros = await dbCarro.getCarros();
+        final carrosArchivados =
+            allCarros.where((carro) => carro['archivado'] == 1).toList();
+        emit(GetAllCarros(
+            carros: allCarros, carrosArchivados: carrosArchivados));
       } catch (e) {
         emit(ErrorGetAllCarros(
             mensajeError: 'Error al cargar todos los carros: $e'));
@@ -146,7 +141,7 @@ class MiBloc extends Bloc<CarroEvento, CarroEstado> {
 
     on<InsertarCarro>((event, emit) async {
       try {
-        await carrosDatabase.addCarro(event.apodo);
+        await dbCarro.addCarro(event.apodo);
 
         emit(CarroInsertado());
         add(GetCarros());
@@ -158,7 +153,7 @@ class MiBloc extends Bloc<CarroEvento, CarroEstado> {
     on<EliminarCarro>((event, emit) {
       try {
         // Llama al método de la base de datos para eliminar el carro
-        carrosDatabase.deleteCarro(event.idCarro);
+        dbCarro.deleteCarro(event.idCarro);
         emit(CarroEliminado());
         add(GetCarros());
       } catch (e) {
@@ -168,7 +163,7 @@ class MiBloc extends Bloc<CarroEvento, CarroEstado> {
 
     on<UpdateCarro>((event, emit) async {
       try {
-        carrosDatabase.updateCarro(event.apodo, event.idcarro);
+        dbCarro.updateCarro(event.apodo, event.idcarro);
 
         emit(CarroActualizado());
         add(GetCarros());
@@ -180,7 +175,7 @@ class MiBloc extends Bloc<CarroEvento, CarroEstado> {
 
     on<ArchivarCarro>((event, emit) async {
       try {
-        carrosDatabase.archivarCarro(event.idcarro);
+        dbCarro.archivarCarro(event.idcarro);
 
         emit(CarroArchivado());
         add(GetCarros());
@@ -188,7 +183,5 @@ class MiBloc extends Bloc<CarroEvento, CarroEstado> {
         emit(ErrorAlArchivarCarro(mensajeError: 'Error al insertar el carro.'));
       }
     });
-
-
   }
 }

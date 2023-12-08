@@ -135,7 +135,7 @@ class ErrorAlActualizarMovimiento extends MovimientoEstado {
 
 class MovimientoBloc extends Bloc<MovimientoEvento, MovimientoEstado> {
   final CategoriaBloc categoriaBloc;
-  final MiBloc carroBloc;
+  final CarroBloc carroBloc;
   final CarrosDatabase dbCarro;
   MovimientoBloc(this.dbCarro, this.categoriaBloc, this.carroBloc)
       : super(EstadoMovimientoInicial()) {

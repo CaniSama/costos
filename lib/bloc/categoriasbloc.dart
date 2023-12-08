@@ -55,8 +55,10 @@ class CategoriaSeleccionadoEstado extends CategoriaEstado {
 
 class GetAllCategorias extends CategoriaEstado {
   final List<Map<String, dynamic>> categorias;
+  final List<Map<String, dynamic>> categoriasarchivadas;
 
-  GetAllCategorias({required this.categorias});
+  GetAllCategorias(
+      {required this.categorias, required this.categoriasarchivadas});
 }
 
 class CategoriaInsertada extends CategoriaEstado {}
@@ -105,6 +107,10 @@ class ErrorAlArchivarCategoria extends CategoriaEstado {
 //bloc
 class CategoriaBloc extends Bloc<CategoriaEvento, CategoriaEstado> {
   final CarrosDatabase dbCarro;
+  late List<Map<String, dynamic>> allCategorias =
+      []; // Lista de todas las categorias
+  late List<Map<String, dynamic>> categoriasArchivadas =
+      []; // Lista de categorias archivadas
   CategoriaBloc(this.dbCarro) : super(EstadoCategoriaInicial()) {
     on<CategoriaInicializada>((event, emit) {
       emit(EstadoCategoriaInicial());
@@ -117,8 +123,13 @@ class CategoriaBloc extends Bloc<CategoriaEvento, CategoriaEstado> {
 
     on<GetCategorias>((event, emit) async {
       try {
-        final categorias = await dbCarro.getCategorias();
-        emit(GetAllCategorias(categorias: categorias));
+        final allCategorias = await dbCarro.getCategorias();
+        final catetegoriasArchivadas = allCategorias
+            .where((categoria) => categoria['archivado'] == 1)
+            .toList();
+        emit(GetAllCategorias(
+            categorias: allCategorias,
+            categoriasarchivadas: catetegoriasArchivadas));
       } catch (e) {
         emit(ErrorGetAllCategorias(
             mensajeError: 'Error al cargar todas las categorias: $e'));
